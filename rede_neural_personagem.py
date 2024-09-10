@@ -7,10 +7,12 @@ class NeuralNetwork(nn.Module):
         super(NeuralNetwork, self).__init__()
         #origem do 12:
         # fome e vida = 2 entradas
+        # direcao da visao = 1 entrada
+        # ultima posicao (x e y) = 2 entradas
         # x e y comida mais proxima = 2 entradas
         # x e y lobsomem = 2 entradas
         # x e y dos 3 humanos mais proximos = 6 entradas
-        self.fc1 = nn.Linear(8, 10)#quero trocar para 12 depois
+        self.fc1 = nn.Linear(11, 10)#quero trocar para 12 depois
         self.fc2 = nn.Linear(10, 10)
         self.fc3 = nn.Linear(10, 3)
     
@@ -32,21 +34,3 @@ def salvar_pesos_binario(model, filename='pesos.pth'):
 def carregar_pesos_binario(model, filename='pesos.pth'):
     model.load_state_dict(torch.load(filename))
     print(f"Pesos carregados de {filename}")
-    
-
-def treinar(model, optimizer, criterio, epochs=100):
-    for epoch in range(epochs):
-        # Exemplo de treinamento (com entradas e saídas fictícias)
-        entradas = torch.randn(10, 12)  # Lote de 10 entradas com 12 características cada
-        saidas_verdadeiras = torch.randn(10, 3)  # Lote de 10 saídas reais com 3 valores
-
-        # Passa as entradas pela rede neural
-        saidas_preditas = model(entradas)
-        
-        # Calcula o erro
-        loss = criterio(saidas_preditas, saidas_verdadeiras)
-        
-        # Backpropagation e ajuste dos pesos
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
