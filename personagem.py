@@ -14,11 +14,13 @@ class Personagem:
         self.id = num
         self.x = random.randint(5, largura - 5)
         self.y = random.randint(5, altura - 5)
+        self.ultimo_x = 0
+        self.ultimo_y = 0
         self.cor_RGB = [random.randint(0, 255),random.randint(0, 255),random.randint(0, 255)]
 
         self.direcao = random.randint(0, 360)   # Direção inicial (em graus)
-        self.raio_visao = 80                    # Raio da visão
-        self.angulo_visao = 150                 # Ângulo da visão
+        self.raio_visao = 200                    # Raio da visão
+        self.angulo_visao = 120                 # Ângulo da visão
 
         self.obj_Janela = obj_Janela
         self.surface = obj_Janela.janela               # Referência à janela para desenhar
@@ -27,8 +29,8 @@ class Personagem:
 
         #atributos de personagens
         self.fome = 100 #se a fome chegar a zero, ele começa a perder vida
-        self.vida = 100 
-        self.velocidade = 5 #para x e y
+        self.vida = 200 
+        self.velocidade = 1 #para x e y
         self.vivo = True
 
         cerebro = NeuralNetwork()
@@ -62,14 +64,16 @@ class Personagem:
             self.vivo = False
             #print(f"ohhh não! morri em ({self.x},{self.y}). ID:{self.id}")
     
-    def checkSaude(self):
+    def checkSaude(self, esfomear = 1):
         if self.fome > 0:
-            self.fome -= 1
+            self.fome -= esfomear
         if (self.fome <= 0 and self.vivo):
-            self.perderVida(1)
+            self.perderVida(1/60)
 
     def moverPersonagem(self, dx, dy):
         if self.vivo:
+            self.ultimo_x = self.x
+            self.ultimo_y = self.y
             if math.fabs(dx) > self.velocidade:
                 dx = self.velocidade
             if math.fabs(dy) > self.velocidade:
@@ -90,6 +94,7 @@ class Personagem:
                 self.y += dy
                 
             self.moverPosicaoRelativa(dx,dy)
+            self.checkSaude(esfomear=1/120)
             
         else:
             pass
@@ -162,10 +167,10 @@ class Personagem:
         # Verifica se o produto escalar está dentro do campo de visão
         if produto_escalar >= cos_meio_angulo_visao:
         # Verifica a distância
-            
+            alcance = 0
             distancia = self.raio_visao
             if distancia_alvo <= distancia:
-                    alcance = 1 # está no campo de visao
+                    alcance += 1 # está no campo de visao
             if distancia_ataque != None:
                 distancia = distancia_ataque
                 if distancia_alvo <= distancia:
@@ -229,11 +234,10 @@ class Lobisomem(Personagem):
     def __init__(self, num, altura, largura, obj_Janela, forca=10):
         super().__init__(num, altura, largura, obj_Janela)
         self.cor_RGB = [219, 44, 0]  # Cor do lobisomem
-        self.raio_visao = 150  # Raio de visão maior que o dos humanos
-        self.velocidade = 8  # Velocidade maior
+        self.raio_visao = 300  # Raio de visão maior que o dos humanos
+        self.velocidade = 3  # Velocidade maior
         self.forca = forca  # Força de ataque
-        self.vida += 5  # Mais vida que um humano
-        #self.fome *= 1.2  # Fome aumenta mais rápido
+        self.vida += 30  # Mais vida que um humano
         self.cerebro = NeuralNetwork()  # Rede neural do lobisomem
         self.carregar_cerebro()  # Carrega os pesos ao iniciar
         self.recompensa = 0  # Variável para acumular a recompensa
@@ -248,14 +252,14 @@ class Lobisomem(Personagem):
     def salvar_cerebro(self):
         filename = f'pesos_lobisomem_{self.id}.pth'
         torch.save(self.cerebro.state_dict(), filename)
-        print(f"Pesos do lobisomem salvos em {filename}")
+        #print(f"Pesos do lobisomem salvos em {filename}")
         self.treinado_pos_morte = True
 
     def carregar_cerebro(self):
         filename = f'pesos_lobisomem_{self.id}.pth'
         try:
             self.cerebro.load_state_dict(torch.load(filename, weights_only=True))
-            print(f"Pesos do lobisomem carregados de {filename}")
+            #print(f"Pesos do lobisomem carregados de {filename}")
         except FileNotFoundError:
             print(f"Pesos para Lobisomem {self.id} não encontrados, começando do zero.")
 
@@ -287,7 +291,8 @@ class Lobisomem(Personagem):
                 self.y += dy
                 
             self.moverPosicaoRelativa(dx,dy)
-            self.penalidade(2/60)
+            self.checkSaude(esfomear=2/60)
+            #self.penalidade(2/60)
             
         else:
             pass
@@ -296,7 +301,7 @@ class Lobisomem(Personagem):
         """Decisão baseada na rede neural, semelhante ao humano."""
         # Coletar as entradas para a rede neural
         humano_proximo = self.humanoMaisProximo()  # [x_humano, y_humano]
-        entradas = torch.tensor([self.vida, self.fome, humano_proximo[0], humano_proximo[1],
+        entradas = torch.tensor([self.vida, self.fome, self.direcao/360, self.ultimo_x, self.ultimo_y, humano_proximo[0], humano_proximo[1],
                                  0, 0, 0, 0], dtype=torch.float32)  # Ajuste conforme necessário
         
         # Passa as entradas pela rede neural
@@ -308,11 +313,11 @@ class Lobisomem(Personagem):
         nova_direcao = saidas[2].item()
 
         self.moverPersonagem(dx, dy)
-        self.moverCabeca(nova_direcao)
+        self.moverCabeca(nova_direcao/10)
 
     def moverCabeca(self,direcao_nova):
         self.direcao += direcao_nova
-        self.fome -= 1
+        self.checkSaude(1/60)
 
     def PerceberAmbiente(self):
         pass
@@ -333,31 +338,37 @@ class Lobisomem(Personagem):
 
     def ComerHumano(self, obj_Humano):
         """Lobisomem tenta atacar e comer um humano se estiver dentro da visão."""
-        if self.DentroDaVisao(obj_Humano , distancia_ataque=15) > 1:
-            if obj_Humano.vivo:
-                if obj_Humano.vida <= self.forca:
-                    self.tirarFome(obj_Humano.vida)
-                    obj_Humano.morrer()
-                    obj_Humano.penalidade(100)
-                    self.ganhar_recompensa(20)  # Ganha recompensa ao comer um humano
-                else:
-                    self.tirarFome(self.forca)
-                    obj_Humano.perderVida(self.forca)
-                    self.ganhar_recompensa(8)  # Ganha recompensa parcial ao atacar
+        if self.DentroDaVisao(obj_Humano , distancia_ataque=15) > 0:
+            self.ganhar_recompensa(1/120)
+            if self.DentroDaVisao(obj_Humano , distancia_ataque=15) > 1:
+                if obj_Humano.vivo:
+                    if obj_Humano.vida <= self.forca:
+                        self.tirarFome(obj_Humano.vida)
+                        obj_Humano.morrer()
+                        obj_Humano.penalidade(100)
+                        self.ganhar_recompensa(50)  # Ganha recompensa ao comer um humano
+                    else:
+                        self.tirarFome(self.forca)
+                        obj_Humano.perderVida(self.forca)
+                        self.ganhar_recompensa(30)  # Ganha recompensa parcial ao atacar
+        else:
+            self.penalidade(1/120)
 
-    def checkSaude(self):#vai morrendo mais rápido, pois pode atacar
+    def checkSaude(self, esfomear = 4/60):#vai morrendo mais rápido, pois pode atacar
         if self.fome > 0:
-            self.fome -= 4
-        if (self.fome == 0 and self.vivo):
-            self.perderVida(4) # Lobisomem perde mais vida quando está com fome
+            self.fome -= esfomear
+            self.penalidade(1/60)
+        if (self.fome <= 0 and self.vivo):
+            self.perderVida(2/60) # Lobisomem perde mais vida quando está com fome
 
     def DesenharPersonagem(self):
         """Desenha o lobisomem na tela como um círculo."""
         if self.vivo:
+            self.cor_RGB = [125,0,0]
             self.desenhar_visao()
 
         else:
-            self.cor_RGB = [125,0,0]
+            self.cor_RGB = [110,30,0]
         pygame.draw.circle(self.surface, [255,0,0], (self.x, self.y), 10)
         pygame.draw.circle(self.surface, self.cor_RGB, (self.x, self.y), 8)
                 
@@ -419,13 +430,14 @@ class Humano(Personagem):
 
         # Evitar lobisomem
         distancia_lobisomem = math.sqrt(lobisomem_pos[0]**2 + lobisomem_pos[1]**2)
-        if distancia_lobisomem < 50:  # Se o lobisomem estiver muito perto, penaliza o personagem
+        if distancia_lobisomem < self.raio_visao:  # Se o lobisomem estiver muito perto, penaliza o personagem
             self.penalidade(2/60)
         else:
-            self.ganhar_recompensa(1/60)  # Recompensa por ficar longe
+            pass
+            #self.ganhar_recompensa(1/60)  # Recompensa por ficar longe
 
         # Prepara as entradas para a rede neural, garantindo que as listas tenham valores
-        entradas = torch.tensor([self.vida, self.fome, comida_proxima[0], comida_proxima[1],
+        entradas = torch.tensor([self.vida, self.fome, self.direcao/360, self.ultimo_x, self.ultimo_y, comida_proxima[0], comida_proxima[1],
                              lobisomem_pos[0], lobisomem_pos[1], aliado_proximo[0], aliado_proximo[1]],
                             dtype=torch.float32)
     
@@ -439,14 +451,11 @@ class Humano(Personagem):
 
         self.moverPersonagem(dx, dy)
         self.ultima_direcao = self.direcao
-        self.moverCabeca(nova_direcao)
-        #if self.direcao == self.ultima_direcao:
-            #self.penalidade(20)
+        self.moverCabeca(nova_direcao/10)
 
     def moverCabeca(self,direcao_nova):
         self.direcao += direcao_nova
-        self.fome -= 1
-        #self.penalidade(1)
+        self.checkSaude(1/60)
         
     def comidaMaisProxima(self):
         if len(self.posComidas) == 0:
@@ -518,8 +527,10 @@ class Comida(Personagem):
         if distancia_alvo <= self.raio:
             personagem.comer()
             self.morrer()
-            personagem.ganhar_recompensa(25)
+            personagem.ganhar_recompensa(40)
             return True
         else:
             return False
+        
+
         
