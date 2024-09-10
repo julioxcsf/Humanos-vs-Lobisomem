@@ -7,7 +7,7 @@
 
 import pygame
 import math
-from janela import Janela, Poligono
+from janela import Janela
 from personagem import Humano,Lobisomem,Comida
 
 import torch
@@ -38,7 +38,7 @@ def treinar_personagem(personagem):
         aliado_proximo = [0, 0]
 
     # Entradas para a rede neural
-    entradas = torch.tensor([personagem.vida, personagem.fome, alvo_proximo[0], alvo_proximo[1],
+    entradas = torch.tensor([personagem.vida, personagem.fome, personagem.direcao/360, personagem.ultimo_x, personagem.ultimo_y, alvo_proximo[0], alvo_proximo[1],
                              0, 0, aliado_proximo[0], aliado_proximo[1]],
                             dtype=torch.float32)
 
@@ -67,23 +67,6 @@ def mutar_pesos(modelo, taxa_mutacao=0.01):
         for param in modelo.parameters():
             param.add_(torch.randn(param.size()) * taxa_mutacao)
 
-def treinar_automaticamente(num_geracoes=100):
-    for geracao in range(num_geracoes):
-        print(f"Treinando geração {geracao + 1}/{num_geracoes}")
-        
-        # Rodar a simulação (pode ser seu método main())
-        main()
-
-        # Selecionar o melhor personagem e copiar seus pesos para os outros
-        melhor_personagem = max(personagens, key=lambda p: p.recompensa)
-        for personagem in personagens:
-            if personagem != melhor_personagem:
-                personagem.cerebro.load_state_dict(melhor_personagem.cerebro.state_dict())
-                mutar_pesos(personagem.cerebro)
-
-        # Resetar o ambiente e personagens para a próxima geração
-        resetar_ambiente()
-
 
 def main():
     pygame.init()
@@ -96,10 +79,9 @@ def main():
     tela.IniciarJanela()
 
     # Inicializando humanos e lobisomens
-    num_lobisomens = 1
+    num_lobisomens = 5
     num_personagens = 30
-    num_comida_limite = 2
-    #lobisomens = [Lobisomem(i, largura, altura, tela, forca=15) for i in range(num_lobisomens)]
+    num_comida_limite = 10
     lobisomens = []
     personagens = []
     comidas = []
@@ -108,25 +90,19 @@ def main():
     
     while i < num_personagens:
         humano = Humano(i, largura, altura, tela)
-        #humano.carregar_cerebro()  # Carrega os pesos ao iniciar
         personagens.append(humano)
         i += 1
 
-    lobisomens.append(Lobisomem(i, largura, altura, tela, forca=15))
+    while i < num_personagens + num_lobisomens:
+        lobisomem = Lobisomem(i, largura, altura, tela, forca=15)
+        lobisomens.append(lobisomem)
+        i += 1
 
-    """personagens[0].raio_visao = 150
-    personagens[0].y = 300
-
-    i=0
-    while i < num_personagens:
-        print(personagens[i])
-        i += 1"""
-    
-    #print("OK")
+    #lobisomens.append(Lobisomem(i, largura, altura, tela, forca=15))
     
     FPS = 60
     while not sair:
-        #clock.tick(FPS)
+        clock.tick(FPS)
         tela.janela.fill((0, 0, 0))  # Cor preta
         #pygame.display.update()
         
@@ -135,6 +111,13 @@ def main():
         #debug
         tela.Escrever(f"FPS:{FPS:>4}", 20, 20)
         tela.Escrever(f"Time:{agora/1000:>4.0f}", 20, 40)
+
+        tela.Escrever(f"Fome:{personagens[0].fome:>4.0f}", 220, 20)
+        tela.Escrever(f"Vida:{personagens[0].vida:>4.0f}", 220, 40)
+
+        tela.Escrever(f"Fome:{lobisomens[0].fome:>4.0f}", 420, 20)
+        tela.Escrever(f"Vida:{lobisomens[0].vida:>4.0f}", 420, 40)
+
 
         # Movimentação e decisões dos personagens
         for personagem in personagens:
@@ -159,14 +142,14 @@ def main():
                 if personagem.DentroDaVisao(lobisomem):
                     lobisomem.adicionarPosicaoRelativa("LOBISOMEM",lobisomem)
                 
+                lobisomem.ComerHumano(personagem)
                 if lobisomem.DentroDaVisao(personagem):
-                    #lobisomem.ganhar_recompensa(1)
                     lobisomem.adicionarPosicaoRelativa("HUMANO",personagem)
-                    lobisomem.ComerHumano(personagem)
+                    
                 if not lobisomem.vivo and lobisomem.treinado_pos_morte == False:
                     treinar_personagem(lobisomem)  # Treina os lobisomens após a morte
                     lobisomem.salvar_cerebro()
-                    lobisomens.remove(lobisomem)
+                    #lobisomens.remove(lobisomem)
 
             if not personagem.vivo and personagem.treinado_pos_morte == False:
                 treinar_personagem(personagem)  # Treina os personagens após a morte
@@ -190,7 +173,7 @@ def main():
                 lobisomem.checkSaude()
             ultimo_tempo = agora  # Reseta o temporizador
 
-        if agora - ultimo_tempo2 > 3000:
+        if agora - ultimo_tempo2 > 2000:
             if len(comidas) < num_comida_limite:
                 comidas.append(Comida(j, largura, altura, tela))
                 j+=1
@@ -205,36 +188,16 @@ def main():
                 treinar_personagem(lobisomem)  # Treina os lobisomens após a morte
                 lobisomem.salvar_cerebro()
 
-            # Encontra o melhor personagem com base na recompensa acumulada
-            melhor_personagem = max(personagens, key=lambda p: p.recompensa)
-
-            # Copiar os pesos da rede do melhor personagem para os outros
-            for personagem in personagens:
-                if personagem != melhor_personagem:
-                    personagem.cerebro.load_state_dict(melhor_personagem.cerebro.state_dict())
-
-            media_recompensa = sum(p.recompensa for p in personagens) / len(personagens)
-            print(f"Recompensa média na geração {index + 1}: {media_recompensa}")
-
             break
             
 
         # Verificar se todos morreram e treinar
         todos_mortos = all(not p.vivo for p in personagens)
-        todos_mortos_lobisomens = all(not l.vivo for l in lobisomens)  # Lobisomens
-        if todos_mortos:
-            # Encontra o melhor personagem com base na recompensa acumulada
-            melhor_personagem = max(personagens, key=lambda p: p.recompensa)
-
-            # Copiar os pesos da rede do melhor personagem para os outros
-            for personagem in personagens:
-                if personagem != melhor_personagem:
-                    personagem.cerebro.load_state_dict(melhor_personagem.cerebro.state_dict())
-
-            media_recompensa = sum(p.recompensa for p in personagens) / len(personagens)
-            print(f"Recompensa média na geração {index + 1}: {media_recompensa}")
-            #print("Todos foram treinados!")
-            break  # Termina o jogo
+        if todos_mortos and not lobisomens[0].vivo:
+            for lobisomem in lobisomens:
+                treinar_personagem(lobisomem)  # Treina os lobisomens após a morte
+                lobisomem.salvar_cerebro()
+            break 
         
         pygame.display.update()
             
@@ -256,6 +219,15 @@ def main():
                 #for personagem in personagens:
                 #    personagem.salvar_cerebro()  # Salva os pesos ao sair
                 #print("Todos foram salvos")
+                melhor_personagem = max(personagens, key=lambda p: p.recompensa)
+
+                # Copiar os pesos da rede do melhor personagem para os outros
+                for personagem in personagens:
+                    if personagem != melhor_personagem:
+                        personagem.cerebro.load_state_dict(melhor_personagem.cerebro.state_dict())
+
+                media_recompensa = sum(p.recompensa for p in personagens) / len(personagens)
+                print(f"Recompensa média na geração {index + 1}: {media_recompensa}")
                 tela.FecharJanela()
                 sair = True
 
@@ -264,8 +236,8 @@ def main():
     pygame.quit()
     return "Finalizado."
 
-index = 0
-while index < 1:
+while index < 10:
     main()
-    index += 1
+    index+=1
+
 #print(main())
