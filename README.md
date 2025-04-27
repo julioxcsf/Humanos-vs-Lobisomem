@@ -1,17 +1,49 @@
-# Humanos-vs-Lobisomem
-Algo semelhante a um jogo onde humanos competem pela comida no terreno e fogem do Lobisomem.
+# Humanos-vs-Lobisomem (Python + Pygame + PyTorch)
 
-Funcionamento:
-Os humanos e o Lobisomem têm fome e precisam buscar comida. O lobisomem busca o humano e o humano foge enquanto busca a comida solta no terreno.
-Ambos podem ver os outros personagens e lembrar de suas posições relativas a si quando o personagem visto ja não está mais em vista.
-A fome é um contador que quando chega a zero, o personagem começa a perder vida. Ganha quem sobreviver até o final.
-Cada personagem tem memoria do que viu(x e y) e essa memoria é atualizada conforme ele se move pelo terreno.
-A rede neural de cada personagem recebe como entrada:
-  1. a fome do personagem;
-  2. a vida do personagem;
-  3. a direcao da visao;
-  4. a sua ultima posicao (x e y);
-  5. a posição relativa da ultima comida vista (x e y);
-  6. posicao relativa do Lobisomem (x e y);
-  7. posicao relativa dos outros Humanos(x e y do ultimo visto);
+Simulação 2D de sobrevivência entre humanos e lobisomens em um ambiente hostil!  
+O jogo combina elementos de **movimentação**, **percepção ambiental** e **aprendizado de máquina** para treinar os personagens usando **redes neurais**.
 
+Desenvolvido totalmente em **Python**, utilizando:
+- **Pygame** para renderização gráfica e lógica de ambiente
+- **PyTorch** para redes neurais e treinamento dos personagens
+
+---
+
+##  Descrição
+
+- **Humanos** tentam sobreviver encontrando comida e evitando lobisomens.
+- **Lobisomens** caçam humanos para se alimentar e sobreviver.
+- Ambos usam **redes neurais simples** para tomar decisões baseadas em:
+  - Fome
+  - Vida
+  - Direção
+  - Últimas posições vistas de inimigos, aliados e alimentos.
+
+O jogo implementa **recompensas** e **punições** durante a simulação para **treinar** as redes em tempo real.
+
+---
+
+## 🛠 Tecnologias utilizadas
+
+- [Python 3](https://www.python.org/)
+- [Pygame](https://www.pygame.org/news)
+- [PyTorch](https://pytorch.org/)
+- Programação Orientada a Objetos (POO)
+
+---
+
+## Funcionalidades principais
+
+- Treinamento online de redes neurais para cada personagem
+- Sistema de recompensa/punição baseado em ações (comer, sobreviver, atacar)
+- Campo de visão dinâmico (raio e ângulo de percepção)
+- Renderização e movimentação fluida no Pygame
+- Salvamento e carregamento dos pesos das redes neurais
+- Evolução das decisões de movimentação e sobrevivência ao longo das gerações
+
+---
+
+## 📷 Demonstração
+![image](https://github.com/user-attachments/assets/57473e7f-5ba9-4a13-b95d-181f28b34da8)
+
+> *Campo de visão do lobo, comidas dos humanos e os mortos (quadrados azuis)*
